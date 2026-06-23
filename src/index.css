@@ -63,6 +63,16 @@ html, body, #root {
   display: none !important;
 }
 
+/* ─── React Flow: animate programmatic position changes (focus mode), but
+   not while the user is actively dragging a node ────────────────────── */
+.react-flow__node {
+  transition: transform 300ms ease;
+}
+
+.react-flow__node.dragging {
+  transition: none;
+}
+
 /* ─── React Flow: node selection ─────────────────────── */
 .react-flow__node:focus {
   outline: none;
