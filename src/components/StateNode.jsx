@@ -1,92 +1,17 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { Handle, Position, useReactFlow } from 'reactflow'
+import { Handle, Position } from 'reactflow'
 
-const CELL_W = 8
-const CELL_H = 6
+const H = { opacity: 0, pointerEvents: 'none' }
 
-const VIRIDIS = [
-  [68, 1, 84],
-  [72, 40, 120],
-  [62, 74, 137],
-  [49, 104, 142],
-  [38, 130, 142],
-  [31, 158, 137],
-  [53, 183, 121],
-  [110, 206, 88],
-  [181, 222, 43],
-  [253, 231, 37],
-]
+export function StateNode({ data }) {
+  const { image_b64, is_first, isCurrent, isSelected, isCompareTarget, stoch_entries } = data
+  const timestep = stoch_entries?.at(-1)?.timestep
 
-function viridisColor(t) {
-  const clamped = Math.max(0, Math.min(1, t))
-  const scaled = clamped * (VIRIDIS.length - 1)
-  const lo = Math.floor(scaled)
-  const hi = Math.min(lo + 1, VIRIDIS.length - 1)
-  const frac = scaled - lo
-  const r = Math.round(VIRIDIS[lo][0] + frac * (VIRIDIS[hi][0] - VIRIDIS[lo][0]))
-  const g = Math.round(VIRIDIS[lo][1] + frac * (VIRIDIS[hi][1] - VIRIDIS[lo][1]))
-  const b = Math.round(VIRIDIS[lo][2] + frac * (VIRIDIS[hi][2] - VIRIDIS[lo][2]))
-  return [r, g, b]
-}
-
-const MODE_CYCLE = ['image', 'matrix', 'both']
-
-function CycleIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-      <rect x="0" y="0" width="4" height="4" rx="0.75"/>
-      <rect x="6" y="0" width="4" height="4" rx="0.75"/>
-      <rect x="0" y="6" width="4" height="4" rx="0.75"/>
-      <rect x="6" y="6" width="4" height="4" rx="0.75"/>
-    </svg>
-  )
-}
-
-export function StateNode({ id, data }) {
-  const canvasRef = useRef(null)
-  const { setNodes } = useReactFlow()
-
-  const { stoch, image_b64, is_first, mode } = data
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas || !stoch) return
-
-    const rows = stoch.length
-    const cols = stoch[0]?.length ?? 0
-    canvas.width = cols * CELL_W
-    canvas.height = rows * CELL_H
-
-    const ctx = canvas.getContext('2d')
-    let min = Infinity
-    let max = -Infinity
-    for (const row of stoch) {
-      for (const v of row) {
-        if (v < min) min = v
-        if (v > max) max = v
-      }
-    }
-    const range = max - min || 1
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const t = (stoch[r][c] - min) / range
-        const [red, green, blue] = viridisColor(t)
-        ctx.fillStyle = `rgb(${red},${green},${blue})`
-        ctx.fillRect(c * CELL_W, r * CELL_H, CELL_W, CELL_H)
-      }
-    }
-  }, [stoch, mode])
-
-  const cycleMode = useCallback(() => {
-    const next = MODE_CYCLE[(MODE_CYCLE.indexOf(mode) + 1) % MODE_CYCLE.length]
-    setNodes((nds) =>
-      nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, mode: next } } : n)),
-    )
-  }, [id, mode, setNodes])
-
-  const showImage = mode === 'image' || mode === 'both'
-  const showMatrix = mode === 'matrix' || mode === 'both'
+  const border = (is_first && !isCurrent) ? '2px solid var(--accent)' : '1px solid var(--border)'
+  const shadows = ['var(--node-shadow)']
+  if (isSelected) shadows.push('0 0 0 2px rgb(217, 70, 239)')
+  if (isCompareTarget) shadows.push('0 0 0 2px #38bdf8')
+  if (isCurrent) shadows.push('0 0 0 2px #f59e0b')
+  const boxShadow = shadows.join(', ')
 
   return (
     <div
@@ -94,19 +19,27 @@ export function StateNode({ id, data }) {
       style={{
         position: 'relative',
         background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
+        border,
         borderRadius: 8,
-        boxShadow: 'var(--node-shadow)',
+        boxShadow,
         overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 128,
+        width: 128,
+        cursor: 'pointer',
         fontFamily: 'inherit',
       }}
     >
-      <Handle type="target" position={Position.Left} />
+      {/* Source handles — s-right first so it's the default for unspecified edges */}
+      <Handle id="s-right"  type="source" position={Position.Right}  style={H} />
+      <Handle id="s-left"   type="source" position={Position.Left}   style={H} />
+      <Handle id="s-top"    type="source" position={Position.Top}    style={H} />
+      <Handle id="s-bottom" type="source" position={Position.Bottom} style={H} />
 
-      {/* START badge — absolute, top-left */}
+      {/* Target handles — t-left first so it's the default for unspecified edges */}
+      <Handle id="t-left"   type="target" position={Position.Left}   style={H} />
+      <Handle id="t-right"  type="target" position={Position.Right}  style={H} />
+      <Handle id="t-top"    type="target" position={Position.Top}    style={H} />
+      <Handle id="t-bottom" type="target" position={Position.Bottom} style={H} />
+
       {is_first && (
         <div style={{
           position: 'absolute',
@@ -126,43 +59,29 @@ export function StateNode({ id, data }) {
         </div>
       )}
 
-      {/* Cycle icon button — top-right */}
-      <button
-        className="nodrag nopan"
-        onClick={cycleMode}
-        title="Cycle display mode"
-        style={{
+      {timestep !== undefined && (
+        <div style={{
           position: 'absolute',
-          top: 5,
-          right: 5,
+          top: -1,
+          right: -1,
           zIndex: 1,
-          width: 18,
-          height: 18,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'transparent',
-          border: '1px solid transparent',
-          borderRadius: 4,
+          background: 'var(--bg-surface)',
           color: 'var(--text-secondary)',
-          cursor: 'pointer',
-          padding: 0,
-          transition: 'border-color 0.1s, background 0.1s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border)'
-          e.currentTarget.style.background = 'var(--bg-surface-hover)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'transparent'
-          e.currentTarget.style.background = 'transparent'
-        }}
-      >
-        <CycleIcon />
-      </button>
+          fontSize: 9,
+          fontWeight: 500,
+          fontFamily: 'monospace',
+          padding: '1px 6px',
+          borderRadius: '0 0 0 6px',
+          border: '1px solid var(--border)',
+          borderTop: 'none',
+          borderRight: 'none',
+          pointerEvents: 'none',
+        }}>
+          t={timestep}
+        </div>
+      )}
 
-      {/* Image */}
-      {showImage && image_b64 && (
+      {image_b64 && (
         <img
           src={`data:image/png;base64,${image_b64}`}
           alt="observation"
@@ -170,28 +89,6 @@ export function StateNode({ id, data }) {
           style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }}
         />
       )}
-
-      {/* Matrix heatmap */}
-      {showMatrix && stoch && (
-        <canvas
-          ref={canvasRef}
-          style={{ display: 'block', width: '100%', imageRendering: 'pixelated' }}
-        />
-      )}
-
-      {/* Mode label */}
-      <div style={{
-        textAlign: 'center',
-        fontSize: 10,
-        color: 'var(--text-secondary)',
-        padding: '3px 0',
-        borderTop: '1px solid var(--border)',
-        fontFamily: 'inherit',
-      }}>
-        {mode}
-      </div>
-
-      <Handle type="source" position={Position.Right} />
     </div>
   )
 }

@@ -1,7 +1,9 @@
 import { getBezierPath, EdgeLabelRenderer } from 'reactflow'
 
-export function TransitionEdge({
-  id,
+const COLOR = '217, 70, 239'
+const MIN_OPACITY = 0.08
+
+export function SimilarityEdge({
   sourceX,
   sourceY,
   targetX,
@@ -10,43 +12,23 @@ export function TransitionEdge({
   targetPosition,
   data,
 }) {
+  const similarity = data?.similarity ?? 0
+  const opacity = MIN_OPACITY + (1 - MIN_OPACITY) * similarity
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
   })
 
-  const markerId = `zflow-marker-${id}`
-  const pathId = `zflow-path-${id}`
-
   return (
     <>
-      <defs>
-        <marker
-          id={markerId}
-          markerWidth="8"
-          markerHeight="8"
-          refX="7"
-          refY="4"
-          orient="auto"
-          markerUnits="userSpaceOnUse"
-        >
-          <path d="M0,0 L0,8 L8,4 z" style={{ fill: 'var(--border-strong)' }} />
-        </marker>
-      </defs>
+      {/* Wide invisible hit-target so the thin styled line below is easy to click */}
+      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={16} style={{ cursor: 'pointer' }} />
 
       <path
-        id={pathId}
-        className="zflow-edge-path"
         d={edgePath}
         fill="none"
-        style={{ stroke: 'var(--border-strong)', strokeWidth: 1.5 }}
-        markerEnd={`url(#${markerId})`}
+        style={{ stroke: `rgba(${COLOR}, ${opacity})`, strokeWidth: 1 + similarity * 2, pointerEvents: 'none' }}
       />
-
-      <circle r="3" style={{ fill: 'var(--border-strong)' }}>
-        <animateMotion dur="2s" repeatCount="indefinite" calcMode="linear">
-          <mpath href={`#${pathId}`} />
-        </animateMotion>
-      </circle>
 
       <EdgeLabelRenderer>
         <div
@@ -55,7 +37,7 @@ export function TransitionEdge({
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             fontSize: 10,
-            color: 'var(--text-secondary)',
+            color: `rgb(${COLOR})`,
             background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
             borderRadius: 4,
@@ -65,7 +47,7 @@ export function TransitionEdge({
             lineHeight: '14px',
           }}
         >
-          {data?.step ?? ''}
+          {Math.round(similarity * 100)}%
         </div>
       </EdgeLabelRenderer>
     </>

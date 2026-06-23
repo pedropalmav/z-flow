@@ -1,18 +1,4 @@
-import { useRef } from 'react'
-
-export function readFileAsJson(file, onLoad) {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    try {
-      onLoad(JSON.parse(e.target.result))
-    } catch {
-      alert('Invalid JSON file.')
-    }
-  }
-  reader.readAsText(file)
-}
-
-const MODES = ['image', 'matrix', 'both']
+import { useState } from 'react'
 
 function Divider() {
   return (
@@ -66,13 +52,16 @@ const btnBase = {
   whiteSpace: 'nowrap',
 }
 
-export function Toolbar({ metadata, nodeCount, onFileLoad, globalMode, onGlobalModeChange, theme, onThemeToggle }) {
-  const inputRef = useRef(null)
+export function Toolbar({
+  metadata, nodeCount,
+  theme, onThemeToggle,
+  connected, wsUrl, onWsUrlChange, onConnect, onDisconnect,
+}) {
+  const [showUrlInput, setShowUrlInput] = useState(false)
 
-  function handleFileChange(e) {
-    const file = e.target.files[0]
-    if (file) readFileAsJson(file, onFileLoad)
-    e.target.value = ''
+  function handleConnect() {
+    onConnect(wsUrl)
+    setShowUrlInput(false)
   }
 
   return (
@@ -103,52 +92,74 @@ export function Toolbar({ metadata, nodeCount, onFileLoad, globalMode, onGlobalM
 
       <Divider />
 
-      {/* Load JSON */}
-      <button
-        style={btnBase}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        onClick={() => inputRef.current?.click()}
-      >
-        Load JSON
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".json,application/json"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-
-      <Divider />
-
-      {/* Segmented mode control */}
-      <div style={{
-        display: 'flex',
-        height: 28,
-        border: '1px solid var(--border)',
-        borderRadius: 6,
-        overflow: 'hidden',
-      }}>
-        {MODES.map((m) => (
+      {/* Connect / Live controls */}
+      {connected ? (
+        <>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-secondary)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+            Live
+          </span>
           <button
-            key={m}
-            onClick={() => onGlobalModeChange(m)}
-            style={{
-              ...btnBase,
-              height: '100%',
-              borderRadius: 0,
-              borderRight: m !== 'both' ? '1px solid var(--border)' : 'none',
-              background: m === globalMode ? 'var(--bg-surface-hover)' : 'transparent',
-              color: m === globalMode ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: m === globalMode ? 500 : 400,
-              padding: '0 10px',
-            }}
+            style={{ ...btnBase, color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+            onClick={onDisconnect}
           >
-            {m}
+            Disconnect
           </button>
-        ))}
-      </div>
+        </>
+      ) : showUrlInput ? (
+        <>
+          <input
+            type="text"
+            value={wsUrl}
+            onChange={(e) => onWsUrlChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleConnect()
+              if (e.key === 'Escape') setShowUrlInput(false)
+            }}
+            placeholder="ws://localhost:8765/ws"
+            autoFocus
+            style={{
+              height: 28,
+              padding: '0 8px',
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontFamily: 'inherit',
+              outline: 'none',
+              width: 220,
+            }}
+          />
+          <button
+            style={{ ...btnBase, fontWeight: 500 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            onClick={handleConnect}
+          >
+            Go
+          </button>
+          <button
+            style={{ ...btnBase, color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            onClick={() => setShowUrlInput(false)}
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          style={btnBase}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          onClick={() => setShowUrlInput(true)}
+        >
+          Connect
+        </button>
+      )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

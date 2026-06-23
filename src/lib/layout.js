@@ -2,46 +2,29 @@ import {
   forceSimulation,
   forceLink,
   forceManyBody,
-  forceX,
-  forceY,
   forceCollide,
+  forceCenter,
 } from 'd3-force'
 
-const NODE_SEP = 240
-const COLLIDE_RADIUS = 110
-
-export function applyLayout(nodes, edges) {
-  const indexById = Object.fromEntries(nodes.map((n, i) => [n.id, i]))
-
-  const simNodes = nodes.map((n, i) => ({ id: n.id, x: i * NODE_SEP, y: 0 }))
-  const simEdges = edges.map((e) => ({
-    source: e.source,
-    target: e.target,
+// Live-mode layout: cycle-friendly, uses current node positions as warm start.
+export function applyLiveLayout(nodes, edges) {
+  const simNodes = nodes.map((n) => ({
+    id: n.id,
+    x: n.position?.x ?? 0,
+    y: n.position?.y ?? 0,
   }))
+
+  const simEdges = edges.map((e) => ({ source: e.source, target: e.target }))
 
   const sim = forceSimulation(simNodes)
-    .force(
-      'link',
-      forceLink(simEdges)
-        .id((d) => d.id)
-        .distance(NODE_SEP)
-        .strength(1),
-    )
-    .force('charge', forceManyBody().strength(-500))
-    .force(
-      'x',
-      forceX((d) => indexById[d.id] * NODE_SEP).strength(0.8),
-    )
-    .force('y', forceY(0).strength(0.3))
-    .force('collide', forceCollide(COLLIDE_RADIUS))
+    .force('link', forceLink(simEdges).id((d) => d.id).distance(160).strength(1))
+    .force('charge', forceManyBody().strength(-600))
+    .force('center', forceCenter(0, 0))
+    .force('collide', forceCollide(90))
     .stop()
 
-  sim.tick(400)
+  sim.tick(300)
 
   const posById = Object.fromEntries(simNodes.map((n) => [n.id, { x: n.x, y: n.y }]))
-
-  return nodes.map((n) => ({
-    ...n,
-    position: posById[n.id],
-  }))
+  return nodes.map((n) => ({ ...n, position: posById[n.id] }))
 }
