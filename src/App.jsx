@@ -20,9 +20,18 @@ import { ActionPanel } from './components/ActionPanel'
 import { StochPanel } from './components/StochPanel'
 import { ComparisonPanel } from './components/ComparisonPanel'
 import { Toolbar } from './components/Toolbar'
+import { ClusterView } from './components/ClusterView'
+import { HomePage } from './components/HomePage'
 
 const nodeTypes = { stateNode: StateNode }
 const edgeTypes = { transitionEdge: TransitionEdge, similarityEdge: SimilarityEdge }
+
+const VALID_PAGES = ['home', 'live', 'clusters']
+
+function getPageFromHash() {
+  const hash = window.location.hash.slice(1)
+  return VALID_PAGES.includes(hash) ? hash : 'home'
+}
 
 function MaximizeIcon() {
   return (
@@ -38,6 +47,14 @@ function MinimizeIcon() {
       <path d="M8 3v5H3M21 8h-5V3M3 16h5v5M16 21v-5h5"/>
     </svg>
   )
+}
+
+// Adapts a ReactFlow state node to ComparisonPanel's view-agnostic shape.
+function toComparisonState(node) {
+  if (!node) return null
+  const entry = node.data.stoch_entries?.at(-1)
+  if (!entry) return null
+  return { id: node.id, image_b64: node.data.image_b64, stoch: entry.stoch, label: `t=${entry.timestep}` }
 }
 
 function getOptimalHandles(srcPos, tgtPos) {
@@ -91,7 +108,7 @@ function computeFocusLayout(source, others) {
   return { center, positions, similarities }
 }
 
-function Flow({ theme, onThemeToggle }) {
+function Flow({ theme, onThemeToggle, onHome }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [metadata, setMetadata] = useState(null)
@@ -365,6 +382,7 @@ function Flow({ theme, onThemeToggle }) {
         onWsUrlChange={setWsUrl}
         onConnect={connect}
         onDisconnect={disconnect}
+        onHome={onHome}
       />
 
       {connected && (
@@ -374,8 +392,8 @@ function Flow({ theme, onThemeToggle }) {
       <StochPanel node={selectedNode} onClose={() => { setSelectedNodeId(null); setCompareNodeId(null) }} />
 
       <ComparisonPanel
-        nodeA={selectedNode}
-        nodeB={compareNodeId ? nodes.find((n) => n.id === compareNodeId) ?? null : null}
+        stateA={toComparisonState(selectedNode)}
+        stateB={toComparisonState(compareNodeId ? nodes.find((n) => n.id === compareNodeId) ?? null : null)}
         onClose={() => setCompareNodeId(null)}
       />
 
@@ -475,17 +493,36 @@ function Flow({ theme, onThemeToggle }) {
 
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('zflow-theme') ?? 'light')
+  const [page, setPage] = useState(() => getPageFromHash())
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('zflow-theme', theme)
   }, [theme])
 
+  // The hash is the single source of truth for the current page, so browser
+  // back/forward (which change the hash without a full reload) land here too.
+  useEffect(() => {
+    const syncFromHash = () => setPage(getPageFromHash())
+    window.addEventListener('hashchange', syncFromHash)
+    return () => window.removeEventListener('hashchange', syncFromHash)
+  }, [])
+
   const toggleTheme = useCallback(() => setTheme((t) => t === 'light' ? 'dark' : 'light'), [])
+  const navigate = useCallback((nextPage) => { window.location.hash = nextPage }, [])
+  const goHome = useCallback(() => navigate('home'), [navigate])
+
+  if (page === 'home') {
+    return <HomePage theme={theme} onThemeToggle={toggleTheme} onSelect={navigate} />
+  }
+
+  if (page === 'clusters') {
+    return <ClusterView theme={theme} onThemeToggle={toggleTheme} onHome={goHome} />
+  }
 
   return (
     <ReactFlowProvider>
-      <Flow theme={theme} onThemeToggle={toggleTheme} />
+      <Flow theme={theme} onThemeToggle={toggleTheme} onHome={goHome} />
     </ReactFlowProvider>
   )
 }
