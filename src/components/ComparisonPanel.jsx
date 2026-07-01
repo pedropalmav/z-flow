@@ -77,7 +77,11 @@ function StateColumn({ column, label, image, stoch, canvasWidth, activeRow, tota
   )
 }
 
-export function ComparisonPanel({ nodeA, nodeB, onClose }) {
+// Plain, view-agnostic state shape so this panel can compare states coming
+// from either the live trajectory graph (ReactFlow nodes) or the cluster
+// explorer (REST detail responses) — callers adapt their own shape to
+// { id, image_b64, stoch, label } before passing it in.
+export function ComparisonPanel({ stateA, stateB, onClose }) {
   const [hoveredRow, setHoveredRow] = useState(null)
   const [clickedRow, setClickedRow] = useState(null)
 
@@ -85,14 +89,12 @@ export function ComparisonPanel({ nodeA, nodeB, onClose }) {
   useEffect(() => {
     setHoveredRow(null)
     setClickedRow(null)
-  }, [nodeA?.id, nodeB?.id])
+  }, [stateA?.id, stateB?.id])
 
-  if (!nodeA || !nodeB) return null
+  if (!stateA || !stateB) return null
 
-  const entryA = nodeA.data.stoch_entries?.at(-1)
-  const entryB = nodeB.data.stoch_entries?.at(-1)
-  const stochA = entryA?.stoch
-  const stochB = entryB?.stoch
+  const stochA = stateA.stoch
+  const stochB = stateB.stoch
   const matches = rowMatches(stochA, stochB)
   const similarity = matches.length ? matches.filter(Boolean).length / matches.length : 0
   const cols = stochA?.[0]?.length ?? 0
@@ -162,9 +164,9 @@ export function ComparisonPanel({ nodeA, nodeB, onClose }) {
           justifyContent: 'center',
           padding: '12px 20px 16px',
         }}>
-          <StateColumn column={1} label={`t=${entryA?.timestep}`} image={nodeA.data.image_b64} stoch={stochA} canvasWidth={canvasWidth} activeRow={activeRow} totalRows={rows} />
+          <StateColumn column={1} label={stateA.label} image={stateA.image_b64} stoch={stochA} canvasWidth={canvasWidth} activeRow={activeRow} totalRows={rows} />
           <RowDiffStrip matches={matches} activeRow={activeRow} onHoverRow={setHoveredRow} onClickRow={handleClickRow} />
-          <StateColumn column={3} label={`t=${entryB?.timestep}`} image={nodeB.data.image_b64} stoch={stochB} canvasWidth={canvasWidth} activeRow={activeRow} totalRows={rows} />
+          <StateColumn column={3} label={stateB.label} image={stateB.image_b64} stoch={stochB} canvasWidth={canvasWidth} activeRow={activeRow} totalRows={rows} />
 
           <div style={{
             gridColumn: 1, gridRow: 4, minWidth: 0, height: 20,

@@ -11,7 +11,7 @@ function Divider() {
   )
 }
 
-function SunIcon() {
+export function SunIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="5"/>
@@ -27,7 +27,7 @@ function SunIcon() {
   )
 }
 
-function MoonIcon() {
+export function MoonIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -56,6 +56,7 @@ export function Toolbar({
   metadata, nodeCount,
   theme, onThemeToggle,
   connected, wsUrl, onWsUrlChange, onConnect, onDisconnect,
+  onHome,
 }) {
   const [showUrlInput, setShowUrlInput] = useState(false)
 
@@ -79,16 +80,26 @@ export function Toolbar({
       WebkitBackdropFilter: 'blur(8px)',
       borderBottom: '1px solid var(--border)',
     }}>
-      {/* Logo */}
-      <span style={{
-        fontSize: 13,
-        fontWeight: 500,
-        color: 'var(--text-primary)',
-        letterSpacing: '-0.01em',
-        paddingRight: 4,
-      }}>
+      {/* Logo — click to return to the page picker */}
+      <button
+        style={{
+          display: 'inline-flex', alignItems: 'center',
+          height: 28, padding: '0 6px',
+          border: 'none', borderRadius: 6,
+          background: 'transparent',
+          fontSize: 13, fontWeight: 500,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.01em',
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+        onClick={onHome}
+        title="Back to home"
+      >
         z-flow
-      </span>
+      </button>
 
       <Divider />
 
